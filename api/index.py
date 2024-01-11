@@ -1,15 +1,11 @@
-from typing import Union
-
+from db import modals
+from db.db_connection import engine
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel
+from router import auth, todo
 
-app = FastAPI(docs_url="/api/docs", openapi_url="/api/openapi.json")
-
-
-@app.get("/api/healthchecker")
-def healthchecker():
-    return {"status": "success", "message": "Integrate FastAPI Framework with Next.js"}
+app = FastAPI()
+modals.Base.metadata.create_all(bind=engine)
 
 
 app.add_middleware(
@@ -20,83 +16,87 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-
-class TodoCreate(BaseModel):
-    title: str
+app = FastAPI(docs_url="/api/docs", openapi_url="/api/openapi.json")
 
 
-class TodoUpdate(BaseModel):
-    title: Union[str, None] = None
-    completed: Union[bool, None] = None
+@app.get("/api/status")
+def status():
+    return {"status": "success", "message": "Integrate FastAPI Framework with Next.js"}
 
 
-class TodoItem(BaseModel):
-    id: int
-    title: str
-    completed: bool
+app.include_router(auth.router)
+app.include_router(todo.router)
 
 
-# Define the TodoItem model
-class TodoItem(BaseModel):
-    id: int
-    title: str
-    completed: bool
+# class TodoCreate(BaseModel):
+#     title: str
 
 
-# In-memory storage for todo items
-todos = []
-
-# Route to create a new todo item
-
-
-@app.post("/api/todos")
-def create_todo_item(todo: TodoCreate):
-    new_todo = TodoItem(id=len(todos) + 1, title=todo.title, completed=False)
-    todos.append(new_todo)
-    return new_todo
+# class TodoUpdate(BaseModel):
+#     title: Union[str, None] = None
+#     completed: Union[bool, None] = None
 
 
-# Route to get all todo items
+# class TodoItem(BaseModel):
+#     id: int
+#     title: str
+#     completed: bool
 
 
-@app.get("/api/todos")
-def get_all_todo_items():
-    return todos
+# # In-memory storage for todo items
+# todos:list[TodoItem] = []
+
+# # Route to create a new todo item
 
 
-# Route to get a specific todo item by ID
+# @app.post("/api/todos")
+# def create_todo_item(todo: TodoCreate):
+#     new_todo = TodoItem(id=len(todos) + 1, title=todo.title, completed=False)
+#     todos.append(new_todo)
+#     return new_todo
 
 
-@app.get("/api/todos/{todo_id}")
-def get_todo_item(todo_id: int):
-    for todo in todos:
-        if todo.id == todo_id:
-            return todo
-    return {"error": "Todo item not found"}
+# # Route to get all todo items
 
 
-# Route to update a specific todo item by ID
+# @app.get("/api/todos")
+# def get_all_todo_items():
+#     return todos
 
 
-@app.patch("/api/todos/{todo_id}")
-def update_todo_item(todo_id: int, todo: TodoUpdate):
-    for todo_item in todos:
-        if todo_item.id == todo_id:
-            todo_item.title = todo.title if todo.title is not None else todo_item.title
-            todo_item.completed = (
-                todo.completed if todo.completed is not None else todo_item.completed
-            )
-            return todo_item
-    return {"error": "Todo item not found"}
+# # Route to get a specific todo item by ID
 
 
-# Route to delete a specific todo item by ID
+# @app.get("/api/todos/{todo_id}")
+# def get_todo_item(todo_id: int):
+#     for todo in todos:
+#         if todo.id == todo_id:
+#             return todo
+#     return {"error": "Todo item not found"}
 
 
-@app.delete("/api/todos/{todo_id}")
-def delete_todo_item(todo_id: int):
-    for i, todo_item in enumerate(todos):
-        if todo_item.id == todo_id:
-            del todos[i]
-            return {"message": "Todo item deleted"}
-    return {"error": "Todo item not found"}
+# # Route to update a specific todo item by ID
+
+
+# @app.patch("/api/todos/{todo_id}")
+# def update_todo_item(todo_id: int, todo: TodoUpdate):
+#     for todo_item in todos:
+#         if todo_item.id == todo_id:
+#             todo_item.title = todo.title if todo.title is not None else todo_item.title
+#             todo_item.completed = (
+#                 todo.completed if todo.completed is not None else todo_item.completed
+#             )
+#             return todo_item
+#     return {"error": "Todo item not found"}
+
+
+# # Route to delete a specific todo item by ID
+
+
+# @app.delete("/api/todos/{todo_id}")
+# def delete_todo_item(todo_id: int):
+#     for i, todo_item in enumerate(todos):
+#         if todo_item.id == todo_id:
+#             del todos[i]
+#             return {"message": "Todo item deleted"}
+#     return {"error": "Todo item not found"}
