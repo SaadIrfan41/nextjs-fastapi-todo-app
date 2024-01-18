@@ -1,8 +1,8 @@
 from datetime import datetime, timedelta
 from typing import Optional
 
-from db.db_connection import get_db
-from db.modals import Users
+from api.db.db_connection import get_db
+from api.db.modals import Users
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from jose import JWTError, jwt
@@ -12,7 +12,8 @@ from sqlalchemy.orm import Session
 
 SECRET_KEY = "KlgH6AzYDeZeGwD288to79I3vTHT8wp7"
 ALGORITHM = "HS256"
-oauth2_bearer = OAuth2PasswordBearer(tokenUrl="token")
+
+router = APIRouter(prefix="/api/auth", tags=["auth"])
 
 
 pwd_cxt = CryptContext(schemes=["bcrypt"], deprecated="auto")
@@ -32,12 +33,16 @@ class CreateUser(BaseModel):
     password: str
 
 
-router = APIRouter(prefix="/api/auth", tags=["auth"])
-
 hash = Hash()
 
+oauth2_bearer = OAuth2PasswordBearer(tokenUrl="/api/auth/token")
 
-# Exceptions
+
+class TokenResponse(BaseModel):
+    access_token: str
+
+
+# User Exception
 def get_user_exception():
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
@@ -47,6 +52,7 @@ def get_user_exception():
     return credentials_exception
 
 
+# Token Exception
 def token_exception():
     token_exception_response = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
@@ -61,7 +67,7 @@ def authenticate_user(username: str, password: str, db: Session):
 
     if not user:
         return False
-    if not hash.verify(password, str(user.password)):
+    if not hash.verify(str(user.password), password):
         return False
     return user
 
@@ -69,9 +75,10 @@ def authenticate_user(username: str, password: str, db: Session):
 async def get_current_user(token: str = Depends(oauth2_bearer)):
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-        # username: str = payload.get("sub")
-        # user_id: int = payload.get("id")
-        if payload.get("sub") is None or payload.get("id") is None:
+        print("PAYLOAD......", payload)
+        username: str | None = payload.get("sub")
+        user_id: int | None = payload.get("id")
+        if username is None or user_id is None:
             raise get_user_exception()
         return {"username": payload.get("sub"), "id": payload.get("id")}
     except JWTError:
@@ -82,16 +89,17 @@ def create_access_token(
     username: str, user_id: int, expires_delta: Optional[timedelta] = None
 ):
     encode = {"sub": username, "id": user_id}
+
+    # Check if expires_delta is provided
     if expires_delta:
         expire = datetime.utcnow() + expires_delta
     else:
-        expire = datetime.utcnow() + timedelta(minutes=15)
+        # If expires_delta is not provided, set a default expiration of 1 day
+        expire = datetime.utcnow() + timedelta(days=1)
+
     encode.update({"exp": expire})
+
     return jwt.encode(encode, SECRET_KEY, algorithm=ALGORITHM)
-
-
-class TokenResponse(BaseModel):
-    token: str
 
 
 @router.post("/token", response_model=TokenResponse)
@@ -101,11 +109,11 @@ async def login_for_access_token(
     user = authenticate_user(form_data.username, form_data.password, db)
     if not user:
         raise token_exception()
-    token_expires = timedelta(minutes=20)
+    token_expires = timedelta(days=1)
     token = create_access_token(
         str(user.username), user.id, expires_delta=token_expires
     )
-    return {"token": token}
+    return {"access_token": token}
 
 
 # Create user

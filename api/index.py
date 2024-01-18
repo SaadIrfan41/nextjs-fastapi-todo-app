@@ -1,8 +1,9 @@
-from db import modals
-from db.db_connection import engine
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from router import auth, todo
+
+from api.db import modals
+from api.db.db_connection import engine
+from api.router import auth, todo
 
 app = FastAPI()
 modals.Base.metadata.create_all(bind=engine)

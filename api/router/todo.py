@@ -1,17 +1,23 @@
-from typing import Any, Dict
+from typing import Any, Dict, Optional
 
-from db.db_connection import get_db
-from db.modals import Todos
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
-from .auth import get_current_user, get_user_exception
+from api.db.db_connection import get_db
+from api.db.modals import Todos
+from api.router.auth import get_current_user, get_user_exception
 
 
 class Todo(BaseModel):
     title: str
     complete: bool
+
+
+class CreateTodo(BaseModel):
+    title: str
+    complete: Optional[bool]
 
 
 router = APIRouter(
@@ -46,31 +52,38 @@ async def read_single_todo(
 ):
     if user.get("id") is None:
         raise get_user_exception()
-    todo_model = (
+    todo = (
         db.query(Todos)
         .filter(Todos.id == todo_id)
-        .filter(Todos.id == user.get("id"))
+        .filter(Todos.owner_id == user.get("id"))
         .first()
     )
-
-    if todo_model is not None:
-        return todo_model
+    print(todo)
+    if todo is not None:
+        return todo
     raise http_exception()
 
 
 @router.post("/create_todo")
 async def create_todo(
-    todo: Todo,
+    todo: CreateTodo,
     user: Dict[str, Any | None] = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    if user.get("id") is None:
-        raise get_user_exception()
-    new_todo = Todos(title=todo.title, complete=todo.complete, owner_id=user.get("id"))
-    db.add(new_todo)
-    db.commit()
-    db.refresh(new_todo)
-    return new_todo
+    try:
+        if user.get("id") is None:
+            raise get_user_exception()
+        new_todo = Todos(
+            title=todo.title, complete=todo.complete, owner_id=user.get("id")
+        )
+        db.add(new_todo)
+        db.commit()
+        db.refresh(new_todo)
+        return new_todo
+    except SQLAlchemyError as e:
+        db.rollback()
+        print(f"Error Creating TODO : {e}")
+        raise
 
 
 @router.put("/{todo_id}")
@@ -80,26 +93,30 @@ async def update_todo(
     user: Dict[str, Any | None] = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    if user.get("id") is None:
-        raise get_user_exception()
+    try:
+        if user.get("id") is None:
+            raise get_user_exception()
+        get_todo = (
+            db.query(Todos)
+            .filter(Todos.id == todo_id)
+            .filter(Todos.owner_id == user.get("id"))
+            .first()
+        )
+        if get_todo is None:
+            raise http_exception()
 
-    todo_model = (
-        db.query(Todos)
-        .filter(Todos.id == todo_id)
-        .filter(Todos.owner_id == user.get("id"))
-        .first()
-    )
+        update_todo = todo.model_dump(exclude_unset=True)
 
-    if todo_model is None:
-        raise http_exception()
-    update_todo = Todos(
-        title=todo.title, complete=todo.complete, owner_id=user.get("id")
-    )
+        for key, value in update_todo.items():
+            setattr(get_todo, key, value)
 
-    db.add(update_todo)
-    db.commit()
-    db.refresh(update_todo)
-    return update_todo
+        db.commit()
+        return update_todo
+
+    except SQLAlchemyError as e:
+        db.rollback()
+        print(f"Error Updating TODO item: {e}")
+        raise
 
 
 @router.delete("/{todo_id}")
