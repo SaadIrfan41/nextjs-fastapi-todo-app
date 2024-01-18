@@ -1,4 +1,4 @@
-from typing import Any, Dict, Optional
+from typing import Any, Optional
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
@@ -36,7 +36,7 @@ async def read_all(db: Session = Depends(get_db)):
 
 @router.get("/user")
 async def read_all_todos_by_user(
-    user: Dict[str, Any | None] = Depends(get_current_user),
+    user: Any = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
     if user.get("id") is None:
@@ -47,7 +47,7 @@ async def read_all_todos_by_user(
 @router.get("/{todo_id}")
 async def read_single_todo(
     todo_id: int,
-    user: Dict[str, Any | None] = Depends(get_current_user),
+    user: Any = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
     if user.get("id") is None:
@@ -67,7 +67,7 @@ async def read_single_todo(
 @router.post("/create_todo")
 async def create_todo(
     todo: CreateTodo,
-    user: Dict[str, Any | None] = Depends(get_current_user),
+    user: Any = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
     try:
@@ -90,7 +90,7 @@ async def create_todo(
 async def update_todo(
     todo_id: int,
     todo: Todo,
-    user: Dict[str, Any | None] = Depends(get_current_user),
+    user: Any = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
     try:
@@ -122,7 +122,7 @@ async def update_todo(
 @router.delete("/{todo_id}")
 async def delete_todo(
     todo_id: int,
-    user: Dict[str, Any | None] = Depends(get_current_user),
+    user: Any = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
     if user.get("id") is None:
