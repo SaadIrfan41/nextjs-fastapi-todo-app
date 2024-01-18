@@ -1,14 +1,14 @@
 from fastapi import FastAPI
 
-from api.db import modals
-from api.db.db_connection import engine
-from api.router import auth, todo
+# from api.db import modals
+# from api.db.db_connection import engine
+# from api.router import auth, todo
 
 # from fastapi.middleware.cors import CORSMiddleware
 
 
 app = FastAPI()
-modals.Base.metadata.create_all(bind=engine)
+# modals.Base.metadata.create_all(bind=engine)
 
 
 # app.add_middleware(
@@ -27,8 +27,8 @@ def status():
     return {"status": "success", "message": "Integrate FastAPI Framework with Next.js"}
 
 
-app.include_router(auth.router)
-app.include_router(todo.router)
+# app.include_router(auth.router)
+# app.include_router(todo.router)
 
 
 # class TodoCreate(BaseModel):
